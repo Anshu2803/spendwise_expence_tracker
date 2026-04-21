@@ -1,61 +1,63 @@
 # Spendwise Personal Finance Tracker
 
 ## Overview
-Spendwise is a full-stack personal finance tool that allows users to record and review their personal expenses. It is designed to handle real-world conditions like unreliable networks, browser refreshes, and double-clicks by strictly enforcing request idempotency.
+Spendwise is a minimalist full-stack personal finance tool that allows users to record and review their personal expenses. It is designed to handle real-world conditions like unreliable networks, browser refreshes, and double-clicks by strictly enforcing request idempotency.
 
-The stack consists of a **React + Vite** frontend and a **FastAPI + Supabase (PostgreSQL)** backend API.
+Previously separate, this has been refactored into a **single Next.js application** that utilizes Next.js App Router (React Server Components and API Routes) backed by **Supabase (PostgreSQL)**.
 
 ## Assignment Alignment & Key Features
 This project fulfills the full criteria of the assignment, prioritizing correctness, clarity, and resilient engineering.
 
 1. **Idempotency & Data Correctness (Network Reliability):**
    - **Frontend:** Generates a unique UUID (`idempotency_key`) on component mount. This UUID is locked to the specific form session.
-   - **Backend API:** Accepts the `idempotency_key` and attempts an `INSERT`. 
+   - **Backend API (`/api/expenses`):** Accepts the `idempotency_key` and attempts an `INSERT`. 
    - **Database (Supabase):** Enforces a `UNIQUE` constraint on the `idempotency_key` column.
-   - **Result:** If the user clicks "Submit" three times rapidly, or refreshes the page and resubmits because a network timeout hid the initial response, the backend traps the `UNIQUE` constraint violation and returns a `200 OK` with the *already existing row*. No duplicate charges are created.
+   - **Result:** If the user clicks "Submit" three times rapidly, or refreshes the page and resubmits because a network timeout hid the initial response, the API catches the `UNIQUE` constraint violation (`23505`) and returns a `200 OK` with the *already existing row*. No duplicate charges are created.
 
 2. **Safe Money Handling:**
-   - **Database:** Amounts are stored as `NUMERIC(12,2)` rather than `FLOAT` or `DOUBLE`. This avoids infamous floating-point precision loss issues.
-   - **Backend:** Pydantic strictly validates that the amount is parsed as a Python `Decimal` and is strictly `> 0`.
-   - **Frontend:** Prevents negative numbers from being entered at the HTML input level and performs a JS verification before sending.
+   - **Database:** Amounts are stored as `NUMERIC(12,2)` rather than `FLOAT` or `DOUBLE`. This avoids floating-point precision loss issues.
+   - **Backend API:** Checks if amount > 0.
+   - **Frontend:** Prevents negative numbers from being entered at the HTML input level.
 
 3. **Feature Completeness:**
    - **Create:** User can record amount, category, description, and date.
    - **View:** User views the expense list, visually grouped by date (`TODAY`, `YESTERDAY`, etc.).
-   - **Filter & Sort:** Query parameter-based filtering (by category) and sorting (newest first). Backend safely handles both parameters directly in the SQL translation query.
+   - **Filter & Sort:** Query parameter-based filtering (by category) and sorting (newest first). Backend safely handles both parameters directly via Supabase query builder.
    - **Totals:** The UI dynamically displays the real-time sum of the *currently visible* (filtered) expenses.
 
-## Design Decisions & Trade-offs
+## Setup Instructions
 
-1. **Why FastAPI?** 
-   - FastAPI forces the use of Pydantic validation models natively, ensuring that incoming data (like `Decimal` amounts and valid string boundaries) is rigorously type-checked before hitting the database.
-
-2. **Why Supabase (PostgreSQL)?**
-   - The assignment permits any reasonable persistence mechanism. Using a managed Postgres database provides industrial-grade guarantees (ACID compliance, Row-Level Security, Native UUIDs) without having to mock local JSON file persistence. 
-   - *Trade-off:* It requires an active internet connection to interact with the API, but perfectly emulates real-world latency scenarios required for testing the idempotency feature.
-
-3. **Intentionally Skipped Items:**
-   - **Authentication:** Left out to keep the feature set small and focused solely on expense creation and viewing correctness.
-   - **Pagination:** The list returns all filtered results at once. In a production scenario with thousands of rows, cursor-based pagination would be necessary.
-   - **Edit / Delete:** The assignment solely requested "recording and reviewing". The focus was spent entirely on ensuring the "record" action was bulletproof against network failures.
-
-## Quick Start (Local Development)
-
-### Seamless Launcher (Windows)
-A `start_spendwise.bat` file is provided at the root. Double click it to automatically spin up both the FastAPI backend and the React frontend in parallel.
-
-### Manual Start
-1. **Backend:**
+1. Install dependencies:
    ```bash
-   cd spendwise-backend
-   python -m venv venv
-   # activate venv
-   pip install -r requirements.txt
-   uvicorn main:app --reload --port 8000
-   ```
-2. **Frontend:**
-   ```bash
-   cd spendwise-frontend
    npm install
+   ```
+
+2. Set up environment variables (`.env.local`):
+   ```env
+   SUPABASE_URL=your_supabase_project_url
+   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+   ```
+   *Note: Using the service role key on the server-side API route bypassing RLS for simplicity in this exercise.*
+
+3. Supabase Schema Requirements:
+   ```sql
+   CREATE TABLE expenses (
+     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+     idempotency_key UUID UNIQUE NOT NULL,
+     amount NUMERIC(12,2) NOT NULL,
+     category TEXT NOT NULL,
+     description TEXT,
+     date DATE NOT NULL,
+     created_at TIMESTAMPTZ DEFAULT now()
+   );
+   ```
+
+4. Run the development server:
+   ```bash
    npm run dev
    ```
+   Access the app at `http://localhost:3000`.
+
+## Design Decisions
+- **Next.js Single App:** Consolidating the React frontend and FastAPI backend into Next.js App Router reduces operational friction, allows for easier deployment on Vercel, and keeps the codebase unified while maintaining a strict Frontend UI/Backend API boundary (`page.tsx` calls `route.ts`).
+- **Supabase (PostgreSQL):** Provides industrial-grade guarantees (ACID compliance, Native UUIDs, UNIQUE constraints) without having to mock local JSON file persistence. 
