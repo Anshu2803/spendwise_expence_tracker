@@ -171,14 +171,18 @@ Visit `http://localhost:3000`
 
 ## Deployment (Vercel)
 
+**Live URL:** https://expensetracker-lk1ruc91q-agrawalanshul2222-6133s-projects.vercel.app
+
+The project is linked to Vercel. Future git pushes to `main` will automatically trigger deployments.
+
+### Manual Deploy Steps:
 1. Push code to GitHub
-2. Import project in Vercel
-3. Set Root Directory to `src` (or deployment root)
-4. Add Environment Variables:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-5. Deploy
+2. Import project in Vercel (or it auto-detects)
+3. Add Environment Variables:
+   - `NEXT_PUBLIC_SUPABASE_URL` = `https://kdxkvpydmcozdexwdgdr.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your anon key
+   - `SUPABASE_SERVICE_ROLE_KEY` = your service role key
+4. Deploy
 
 ---
 
