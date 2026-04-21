@@ -1,13 +1,36 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL || 'https://kdxkvpydmcozdexwdgdr.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkeGt2cHlkbWNvemRleHdkZ2RyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Njc5ODcwNCwiZXhwIjoyMDkyMzc0NzA0fQ.ip5amJqJ5m0rilz2uPngEedNrBFrnhZ7dsUd8rBx-Fs';
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+function getUserFromHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader) return null;
+  
+  const token = authHeader.replace('Bearer ', '');
+  return token;
+}
 
 export async function GET(request: Request) {
   try {
+    const userToken = getUserFromHeader(request);
+    if (!userToken) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(userToken);
+    if (authError || !user) {
+      return NextResponse.json({ detail: 'Invalid token' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const sort = searchParams.get('sort') || 'date_desc';
 
-    let query = supabase.from('expenses').select('*');
+    let query = supabase.from('expenses').select('*').eq('user_id', user.id);
 
     if (category) {
       query = query.eq('category', category);
@@ -33,6 +56,16 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const userToken = getUserFromHeader(request);
+    if (!userToken) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(userToken);
+    if (authError || !user) {
+      return NextResponse.json({ detail: 'Invalid token' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { idempotency_key, amount, category, description, date } = body;
 
@@ -50,30 +83,29 @@ export async function POST(request: Request) {
 
     const expenseData = {
       idempotency_key,
+      user_id: user.id,
       amount: parseFloat(amount),
       category: category.trim(),
       description: description || '',
       date
     };
 
-    // Try to insert
     const { data, error } = await supabase.from('expenses').insert(expenseData).select();
 
     if (error) {
-      // Check for unique constraint violation (idempotency key)
       if (error.code === '23505' || error.message.includes('duplicate key') || error.message.includes('unique')) {
-        // Fetch the existing record
         const { data: existingData, error: existingError } = await supabase
           .from('expenses')
           .select('*')
           .eq('idempotency_key', idempotency_key)
+          .eq('user_id', user.id)
           .single();
 
         if (existingError) {
           return NextResponse.json({ detail: 'Conflict, but could not fetch existing record' }, { status: 409 });
         }
 
-        return NextResponse.json(existingData, { status: 200 }); // Return 200 OK with existing data (Idempotency)
+        return NextResponse.json(existingData, { status: 200 });
       }
 
       return NextResponse.json({ detail: error.message }, { status: 500 });
@@ -87,6 +119,16 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const userToken = getUserFromHeader(request);
+    if (!userToken) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(userToken);
+    if (authError || !user) {
+      return NextResponse.json({ detail: 'Invalid token' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -94,7 +136,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ detail: 'id is required' }, { status: 400 });
     }
 
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
+    const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', user.id);
 
     if (error) {
       return NextResponse.json({ detail: error.message }, { status: 500 });

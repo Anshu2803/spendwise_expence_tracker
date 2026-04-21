@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 interface ExpenseFormProps {
@@ -35,10 +35,10 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
     setStatus({ type: 'loading', message: 'Saving...' });
 
     try {
-      const response = await axios.post('/api/expenses', formData);
+      const response = await api.createExpense(formData);
       
       // On success (201 created or 200 returned existing), generate a NEW idempotency key for the next submission
-      setStatus({ type: 'success', message: response.status === 200 ? 'Expense previously saved (Double click prevented)' : 'Expense added!' });
+      setStatus({ type: 'success', message: 'Expense added!' });
       
       setFormData({
         amount: '',

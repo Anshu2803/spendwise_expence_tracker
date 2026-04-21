@@ -1,6 +1,6 @@
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { IndianRupee, Tag, Info, Trash2 } from 'lucide-react';
-import axios from 'axios';
+import { api } from '@/lib/api';
 
 interface Expense {
   id: string;
@@ -39,7 +39,7 @@ export default function ExpenseList({ expenses, loading, onDelete }: ExpenseList
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this expense?')) return;
     try {
-      await axios.delete(`/api/expenses?id=${id}`);
+      await api.deleteExpense(id);
       onDelete(id);
     } catch (error) {
       console.error('Failed to delete expense', error);
