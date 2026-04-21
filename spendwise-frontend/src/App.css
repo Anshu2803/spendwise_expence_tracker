@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+* {
+  @apply antialiased;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #101415;
+  color: #e0e3e5;
+  margin: 0;
+  padding: 0;
+}
