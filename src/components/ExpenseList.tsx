@@ -1,5 +1,6 @@
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
-import { IndianRupee, Tag, Info } from 'lucide-react';
+import { IndianRupee, Tag, Info, Trash2 } from 'lucide-react';
+import axios from 'axios';
 
 interface Expense {
   id: string;
@@ -12,6 +13,7 @@ interface Expense {
 interface ExpenseListProps {
   expenses: Expense[];
   loading: boolean;
+  onDelete: (id: string) => void;
 }
 
 const getCategoryColor = (category: string) => {
@@ -33,7 +35,16 @@ const formatDateGroup = (dateString: string) => {
   return format(date, 'MMM d, yyyy').toUpperCase();
 };
 
-export default function ExpenseList({ expenses, loading }: ExpenseListProps) {
+export default function ExpenseList({ expenses, loading, onDelete }: ExpenseListProps) {
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this expense?')) return;
+    try {
+      await axios.delete(`/api/expenses?id=${id}`);
+      onDelete(id);
+    } catch (error) {
+      console.error('Failed to delete expense', error);
+    }
+  };
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 space-y-4 animate-pulse">
@@ -90,9 +101,18 @@ export default function ExpenseList({ expenses, loading }: ExpenseListProps) {
                   </div>
                 </div>
                 
-                <div className="text-right shrink-0 flex items-center text-lg font-bold text-gray-900">
-                  <IndianRupee className="w-4 h-4 mr-0.5 text-gray-500" />
-                  {Number(expense.amount).toFixed(2)}
+                <div className="text-right shrink-0 flex items-center gap-3">
+                  <div className="flex items-center text-lg font-bold text-gray-900">
+                    <IndianRupee className="w-4 h-4 mr-0.5 text-gray-500" />
+                    {Number(expense.amount).toFixed(2)}
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(expense.id); }}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    title="Delete expense"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </li>
             ))}

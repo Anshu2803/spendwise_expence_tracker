@@ -29,6 +29,10 @@ export default function Home() {
     }
   }, [filterCategory, sort]);
 
+  const handleDelete = useCallback((id: string) => {
+    setExpenses(prev => prev.filter(e => e.id !== id));
+  }, []);
+
   useEffect(() => {
     fetchExpenses();
   }, [fetchExpenses]);
@@ -66,7 +70,7 @@ export default function Home() {
               />
             </div>
             <div className="p-4">
-              <ExpenseList expenses={expenses} loading={loading} />
+              <ExpenseList expenses={expenses} loading={loading} onDelete={handleDelete} />
             </div>
           </div>
         </section>
